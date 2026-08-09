@@ -1,9 +1,8 @@
 import { useState } from "react";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth } from "../firebase/firebase";
-import { updateProfile } from "firebase/auth";
 import { toast } from "react-toastify";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { doc, setDoc } from "firebase/firestore";
 import { db } from "../firebase/firebase";
 
@@ -23,8 +22,13 @@ function Register() {
         userPassword,
       );
 
-      await updateProfile(auth.currentUser, {
-        displayName: userName,
+      await setDoc(doc(db, "users", userCredential.user.uid), {
+        uid: userCredential.user.uid,
+        name: userName,
+        email: userEmail,
+        photoURL: "",
+        bio: "",
+        createdAt: new Date().toISOString(),
       });
 
       toast.success("Account created successfully.");
@@ -101,9 +105,9 @@ function Register() {
 
         <p className="mt-6 text-center text-sm text-slate-600">
           Already have an account?
-          <span className="ml-1 cursor-pointer font-semibold text-blue-600 hover:underline">
+          <Link to="/login" className="ml-1 font-semibold text-blue-600 hover:underline">
             Login
-          </span>
+          </Link>
         </p>
       </div>
     </div>

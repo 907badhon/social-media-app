@@ -5,7 +5,7 @@ import {
 } from "firebase/auth";
 import { auth } from "../firebase/firebase";
 import { toast } from "react-toastify";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 function Login() {
   const [userEmail, setUserEmail] = useState("");
@@ -21,7 +21,7 @@ function Login() {
       toast.success("Logged in successfully.");
 
       navigate("/");
-    } catch (error) {
+    } catch {
       toast.error("Invalid email or password");
     }
   };
@@ -94,9 +94,9 @@ function Login() {
 
         <p className="mt-6 text-center text-sm text-slate-600">
           Don't have an account?
-          <span className="ml-1 cursor-pointer font-semibold text-blue-600 hover:underline">
+          <Link to="/register" className="ml-1 font-semibold text-blue-600 hover:underline">
             Register
-          </span>
+          </Link>
         </p>
       </div>
     </div>
