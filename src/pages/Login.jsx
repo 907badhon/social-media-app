@@ -2,15 +2,29 @@ import { useState } from "react";
 import {
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
+  signInWithPopup,
+  GoogleAuthProvider,
 } from "firebase/auth";
 import { auth } from "../firebase/firebase";
 import { toast } from "react-toastify";
 import { useNavigate, Link } from "react-router-dom";
 
+const googleProvider = new GoogleAuthProvider();
+
 function Login() {
   const [userEmail, setUserEmail] = useState("");
   const [userPassword, setUserPassword] = useState("");
   const navigate = useNavigate();
+
+  const handleGoogleLogin = async () => {
+    try {
+      await signInWithPopup(auth, googleProvider);
+      toast.success("Logged in successfully.");
+      navigate("/");
+    } catch (error) {
+      toast.error(error.message);
+    }
+  };
 
   const handleLogin = async (event) => {
     event.preventDefault();
@@ -90,11 +104,21 @@ function Login() {
           >
             Login
           </button>
+          <button
+            type="button"
+            onClick={handleGoogleLogin}
+            className="w-full rounded-lg bg-blue-600 py-3 font-semibold text-white transition hover:bg-blue-700 cursor-pointer"
+          >
+            Login with Google
+          </button>
         </form>
 
         <p className="mt-6 text-center text-sm text-slate-600">
           Don't have an account?
-          <Link to="/register" className="ml-1 font-semibold text-blue-600 hover:underline">
+          <Link
+            to="/register"
+            className="ml-1 font-semibold text-blue-600 hover:underline"
+          >
             Register
           </Link>
         </p>

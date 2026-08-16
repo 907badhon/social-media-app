@@ -3,6 +3,7 @@ import { AuthContext } from "../context/AuthContext";
 import { db } from "../firebase/firebase";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { toast } from "react-toastify";
+import ProfileSkeleton from "../components/ProfileSkeleton";
 
 function Profile() {
   const { user } = useContext(AuthContext);
@@ -12,6 +13,8 @@ function Profile() {
   const [bio, setBio] = useState("");
   const [image, setImage] = useState(null);
   const [preview, setPreview] = useState("");
+
+  const [loadingProfile, setLoadingProfile] = useState(true);
 
   const getUserProfile = useCallback(async () => {
     if (!user?.uid) return;
@@ -31,6 +34,8 @@ function Profile() {
     } catch (error) {
       console.error(error);
       toast.error("Failed to load profile.");
+    } finally {
+      setLoadingProfile(false);
     }
   }, [user?.uid]);
 
@@ -104,6 +109,16 @@ function Profile() {
       toast.error("Failed to update profile.");
     }
   };
+
+  if (loadingProfile) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-slate-100 px-4">
+        <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl">
+          <ProfileSkeleton />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-100 px-4">

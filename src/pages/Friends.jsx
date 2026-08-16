@@ -14,6 +14,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { toast } from "react-toastify";
+import { UserCardSkeletonGrid } from "../components/UserCardSkeleton";
 
 function Friends() {
   const { user } = useContext(AuthContext);
@@ -23,6 +24,7 @@ function Friends() {
   const [sentRequests, setSentRequests] = useState([]);
   const [receivedRequests, setReceivedRequests] = useState([]);
   const [friendIds, setFriendIds] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(true);
 
   // 1. Listen to all registered users (excluding current user)
   useEffect(() => {
@@ -37,10 +39,13 @@ function Friends() {
           }
         });
         setAllUsers(list);
+        setLoadingUsers(false);
       },
       (error) => {
         console.error("Error fetching users:", error);
-      }
+        setLoadingUsers(false);
+        toast.error("Failed to load users.");
+      },
     );
     return unsubscribe;
   }, [user.uid]);
@@ -49,7 +54,7 @@ function Friends() {
   useEffect(() => {
     const q = query(
       collection(db, "friendRequests"),
-      where("senderId", "==", user.uid)
+      where("senderId", "==", user.uid),
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const list = [];
@@ -65,7 +70,7 @@ function Friends() {
   useEffect(() => {
     const q = query(
       collection(db, "friendRequests"),
-      where("receiverId", "==", user.uid)
+      where("receiverId", "==", user.uid),
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const list = [];
@@ -94,7 +99,9 @@ function Friends() {
   const handleSendRequest = async (targetId) => {
     // Check if request already exists
     const alreadySent = sentRequests.some((r) => r.receiverId === targetId);
-    const alreadyReceived = receivedRequests.some((r) => r.senderId === targetId);
+    const alreadyReceived = receivedRequests.some(
+      (r) => r.senderId === targetId,
+    );
 
     if (alreadySent || alreadyReceived) {
       toast.error("A friend request already exists between you.");
@@ -163,7 +170,7 @@ function Friends() {
       const req = [...sentRequests, ...receivedRequests].find(
         (r) =>
           (r.senderId === user.uid && r.receiverId === friendId) ||
-          (r.senderId === friendId && r.receiverId === user.uid)
+          (r.senderId === friendId && r.receiverId === user.uid),
       );
 
       if (req) {
@@ -185,14 +192,15 @@ function Friends() {
     if (sent) return sent.status === "accepted" ? "friends" : "sent_pending";
 
     const received = receivedRequests.find((r) => r.senderId === targetId);
-    if (received) return received.status === "accepted" ? "friends" : "received_pending";
+    if (received)
+      return received.status === "accepted" ? "friends" : "received_pending";
 
     return "none";
   };
 
   // Filter users by search query
   const filteredUsers = allUsers.filter((u) =>
-    u.name?.toLowerCase().includes(searchQuery.toLowerCase())
+    u.name?.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   // List of actual friend user details
@@ -217,7 +225,9 @@ function Friends() {
   return (
     <div className="min-h-screen bg-slate-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-4xl">
-        <h1 className="text-2xl font-bold text-slate-800 mb-6">Friends Directory</h1>
+        <h1 className="text-2xl font-bold text-slate-800 mb-6">
+          Friends Directory
+        </h1>
 
         {/* Tab Headers */}
         <div className="mb-6 flex border-b border-slate-200">
@@ -268,69 +278,80 @@ function Friends() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 outline-none focus:border-blue-500 transition text-sm text-slate-800 shadow-sm"
             />
+            {loadingUsers ? (
+              <UserCardSkeletonGrid count={4} />
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {filteredUsers.length === 0 ? (
+                  <div className="col-span-full rounded-2xl bg-white p-8 text-center border border-slate-100 shadow-sm">
+                    <p className="text-slate-500 text-sm">No users found.</p>
+                  </div>
+                ) : (
+                  filteredUsers.map((item) => {
+                    const status = getRequestStatus(item.uid);
+                    return (
+                      <div
+                        key={item.uid}
+                        className="flex items-center justify-between rounded-xl bg-white p-4 border border-slate-100 shadow-sm transition hover:shadow-md"
+                      >
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={
+                              item.photoURL ||
+                              "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='20' fill='%23e2e8f0'/%3E%3Ccircle cx='20' cy='16' r='7' fill='%2394a3b8'/%3E%3Cellipse cx='20' cy='35' rx='12' ry='8' fill='%2394a3b8'/%3E%3C/svg%3E"
+                            }
+                            alt={item.name}
+                            className="h-10 w-10 rounded-full object-cover border border-slate-100"
+                            onError={(e) => {
+                              e.target.src =
+                                "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='20' fill='%23e2e8f0'/%3E%3Ccircle cx='20' cy='16' r='7' fill='%2394a3b8'/%3E%3Cellipse cx='20' cy='35' rx='12' ry='8' fill='%2394a3b8'/%3E%3C/svg%3E";
+                            }}
+                          />
+                          <div>
+                            <h3 className="text-sm font-semibold text-slate-800">
+                              {item.name}
+                            </h3>
+                            <p className="text-xs text-slate-400 truncate max-w-xs">
+                              {item.bio || "No bio yet"}
+                            </p>
+                          </div>
+                        </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {filteredUsers.length === 0 ? (
-                <div className="col-span-full rounded-2xl bg-white p-8 text-center border border-slate-100 shadow-sm">
-                  <p className="text-slate-500 text-sm">No users found.</p>
-                </div>
-              ) : (
-                filteredUsers.map((item) => {
-                  const status = getRequestStatus(item.uid);
-                  return (
-                    <div
-                      key={item.uid}
-                      className="flex items-center justify-between rounded-xl bg-white p-4 border border-slate-100 shadow-sm transition hover:shadow-md"
-                    >
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={item.photoURL || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='20' fill='%23e2e8f0'/%3E%3Ccircle cx='20' cy='16' r='7' fill='%2394a3b8'/%3E%3Cellipse cx='20' cy='35' rx='12' ry='8' fill='%2394a3b8'/%3E%3C/svg%3E"}
-                          alt={item.name}
-                          className="h-10 w-10 rounded-full object-cover border border-slate-100"
-                          onError={(e) => {
-                            e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='20' fill='%23e2e8f0'/%3E%3Ccircle cx='20' cy='16' r='7' fill='%2394a3b8'/%3E%3Cellipse cx='20' cy='35' rx='12' ry='8' fill='%2394a3b8'/%3E%3C/svg%3E";
-                          }}
-                        />
+                        {/* Action Button */}
                         <div>
-                          <h3 className="text-sm font-semibold text-slate-800">{item.name}</h3>
-                          <p className="text-xs text-slate-400 truncate max-w-xs">{item.bio || "No bio yet"}</p>
+                          {status === "none" && (
+                            <button
+                              onClick={() => handleSendRequest(item.uid)}
+                              className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-blue-700 cursor-pointer"
+                            >
+                              Add Friend
+                            </button>
+                          )}
+                          {status === "sent_pending" && (
+                            <span className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-500">
+                              Requested
+                            </span>
+                          )}
+                          {status === "received_pending" && (
+                            <button
+                              onClick={() => setActiveTab("requests")}
+                              className="rounded-lg bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-600 transition hover:bg-indigo-100 cursor-pointer"
+                            >
+                              Respond
+                            </button>
+                          )}
+                          {status === "friends" && (
+                            <span className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-600">
+                              ✓ Friend
+                            </span>
+                          )}
                         </div>
                       </div>
-
-                      {/* Action Button */}
-                      <div>
-                        {status === "none" && (
-                          <button
-                            onClick={() => handleSendRequest(item.uid)}
-                            className="rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-blue-700 cursor-pointer"
-                          >
-                            Add Friend
-                          </button>
-                        )}
-                        {status === "sent_pending" && (
-                          <span className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-500">
-                            Requested
-                          </span>
-                        )}
-                        {status === "received_pending" && (
-                          <button
-                            onClick={() => setActiveTab("requests")}
-                            className="rounded-lg bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-600 transition hover:bg-indigo-100 cursor-pointer"
-                          >
-                            Respond
-                          </button>
-                        )}
-                        {status === "friends" && (
-                          <span className="rounded-lg bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-600">
-                            ✓ Friend
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
+                    );
+                  })
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -339,10 +360,14 @@ function Friends() {
           <div className="space-y-6">
             {/* Received Requests */}
             <div>
-              <h2 className="text-md font-semibold text-slate-700 mb-3">Received Requests</h2>
+              <h2 className="text-md font-semibold text-slate-700 mb-3">
+                Received Requests
+              </h2>
               {incomingPending.length === 0 ? (
                 <div className="rounded-2xl bg-white p-6 text-center border border-slate-100 shadow-sm">
-                  <p className="text-slate-500 text-sm">No incoming friend requests.</p>
+                  <p className="text-slate-500 text-sm">
+                    No incoming friend requests.
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -353,7 +378,10 @@ function Friends() {
                     >
                       <div className="flex items-center gap-3">
                         <img
-                          src={req.senderInfo.photoURL || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='20' fill='%23e2e8f0'/%3E%3Ccircle cx='20' cy='16' r='7' fill='%2394a3b8'/%3E%3Cellipse cx='20' cy='35' rx='12' ry='8' fill='%2394a3b8'/%3E%3C/svg%3E"}
+                          src={
+                            req.senderInfo.photoURL ||
+                            "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='20' fill='%23e2e8f0'/%3E%3Ccircle cx='20' cy='16' r='7' fill='%2394a3b8'/%3E%3Cellipse cx='20' cy='35' rx='12' ry='8' fill='%2394a3b8'/%3E%3C/svg%3E"
+                          }
                           alt={req.senderInfo.name}
                           className="h-10 w-10 rounded-full object-cover border border-slate-100"
                         />
@@ -389,10 +417,14 @@ function Friends() {
 
             {/* Sent Requests */}
             <div>
-              <h2 className="text-md font-semibold text-slate-700 mb-3">Sent Requests</h2>
+              <h2 className="text-md font-semibold text-slate-700 mb-3">
+                Sent Requests
+              </h2>
               {outgoingPending.length === 0 ? (
                 <div className="rounded-2xl bg-white p-6 text-center border border-slate-100 shadow-sm">
-                  <p className="text-slate-500 text-sm">No pending sent requests.</p>
+                  <p className="text-slate-500 text-sm">
+                    No pending sent requests.
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -403,7 +435,10 @@ function Friends() {
                     >
                       <div className="flex items-center gap-3">
                         <img
-                          src={req.receiverInfo.photoURL || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='20' fill='%23e2e8f0'/%3E%3Ccircle cx='20' cy='16' r='7' fill='%2394a3b8'/%3E%3Cellipse cx='20' cy='35' rx='12' ry='8' fill='%2394a3b8'/%3E%3C/svg%3E"}
+                          src={
+                            req.receiverInfo.photoURL ||
+                            "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='20' fill='%23e2e8f0'/%3E%3Ccircle cx='20' cy='16' r='7' fill='%2394a3b8'/%3E%3Cellipse cx='20' cy='35' rx='12' ry='8' fill='%2394a3b8'/%3E%3C/svg%3E"
+                          }
                           alt={req.receiverInfo.name}
                           className="h-10 w-10 rounded-full object-cover border border-slate-100"
                         />
@@ -436,7 +471,9 @@ function Friends() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {myFriends.length === 0 ? (
               <div className="col-span-full rounded-2xl bg-white p-8 text-center border border-slate-100 shadow-sm">
-                <p className="text-slate-500 text-sm">You haven't added any friends yet.</p>
+                <p className="text-slate-500 text-sm">
+                  You haven't added any friends yet.
+                </p>
               </div>
             ) : (
               myFriends.map((friend) => (
@@ -446,16 +483,24 @@ function Friends() {
                 >
                   <div className="flex items-center gap-3">
                     <img
-                      src={friend.photoURL || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='20' fill='%23e2e8f0'/%3E%3Ccircle cx='20' cy='16' r='7' fill='%2394a3b8'/%3E%3Cellipse cx='20' cy='35' rx='12' ry='8' fill='%2394a3b8'/%3E%3C/svg%3E"}
+                      src={
+                        friend.photoURL ||
+                        "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='20' fill='%23e2e8f0'/%3E%3Ccircle cx='20' cy='16' r='7' fill='%2394a3b8'/%3E%3Cellipse cx='20' cy='35' rx='12' ry='8' fill='%2394a3b8'/%3E%3C/svg%3E"
+                      }
                       alt={friend.name}
                       className="h-10 w-10 rounded-full object-cover border border-slate-100"
                       onError={(e) => {
-                        e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='20' fill='%23e2e8f0'/%3E%3Ccircle cx='20' cy='16' r='7' fill='%2394a3b8'/%3E%3Cellipse cx='20' cy='35' rx='12' ry='8' fill='%2394a3b8'/%3E%3C/svg%3E";
+                        e.target.src =
+                          "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='20' fill='%23e2e8f0'/%3E%3Ccircle cx='20' cy='16' r='7' fill='%2394a3b8'/%3E%3Cellipse cx='20' cy='35' rx='12' ry='8' fill='%2394a3b8'/%3E%3C/svg%3E";
                       }}
                     />
                     <div>
-                      <h3 className="text-sm font-semibold text-slate-800">{friend.name}</h3>
-                      <p className="text-xs text-slate-400 truncate max-w-xs">{friend.bio || "No bio yet"}</p>
+                      <h3 className="text-sm font-semibold text-slate-800">
+                        {friend.name}
+                      </h3>
+                      <p className="text-xs text-slate-400 truncate max-w-xs">
+                        {friend.bio || "No bio yet"}
+                      </p>
                     </div>
                   </div>
 

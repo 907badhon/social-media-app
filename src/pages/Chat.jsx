@@ -11,6 +11,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { toast } from "react-toastify";
+import { ChatListSkeleton } from "../components/ChatListItemSkeleton";
 
 const DEFAULT_AVATAR =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='20' fill='%23e2e8f0'/%3E%3Ccircle cx='20' cy='16' r='7' fill='%2394a3b8'/%3E%3Cellipse cx='20' cy='35' rx='12' ry='8' fill='%2394a3b8'/%3E%3C/svg%3E";
@@ -59,7 +60,7 @@ function Chat() {
   useEffect(() => {
     const q = query(
       collection(db, "chats"),
-      where("participants", "array-contains", user.uid)
+      where("participants", "array-contains", user.uid),
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const list = [];
@@ -93,7 +94,7 @@ function Chat() {
     }
 
     const existingChat = chats.find((c) =>
-      c.participants.includes(selectedFriend.uid)
+      c.participants.includes(selectedFriend.uid),
     );
 
     if (existingChat) {
@@ -127,7 +128,7 @@ function Chat() {
     const q = query(
       collection(db, "messages"),
       where("chatId", "==", activeChatId),
-      orderBy("createdAt", "asc")
+      orderBy("createdAt", "asc"),
     );
 
     const unsubscribe = onSnapshot(
@@ -141,7 +142,7 @@ function Chat() {
       },
       (error) => {
         console.error("Error fetching messages:", error);
-      }
+      },
     );
 
     return unsubscribe;
@@ -200,14 +201,18 @@ function Chat() {
         </div>
 
         <div className="flex-1 overflow-y-auto p-2 space-y-1">
-          {sidebarPeople.length === 0 ? (
+          {loadingChats ? (
+            <ChatListSkeleton count={5} />
+          ) : sidebarPeople.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-slate-400 text-sm">Add friends to start chatting!</p>
+              <p className="text-slate-400 text-sm">
+                Add friends to start chatting!
+              </p>
             </div>
           ) : (
             sidebarPeople.map((person) => {
               const hasExistingChat = chats.some((c) =>
-                c.participants.includes(person.uid)
+                c.participants.includes(person.uid),
               );
               return (
                 <button
@@ -232,7 +237,9 @@ function Chat() {
                   <div className="truncate">
                     <p className="text-sm font-semibold">{person.name}</p>
                     <p className="text-xs text-slate-400 truncate">
-                      {hasExistingChat ? "Tap to open chat" : person.bio || "Available"}
+                      {hasExistingChat
+                        ? "Tap to open chat"
+                        : person.bio || "Available"}
                     </p>
                   </div>
                 </button>
@@ -245,7 +252,9 @@ function Chat() {
       {/* Chat pane */}
       <div
         className={`flex-1 flex flex-col bg-slate-50 ${
-          !selectedFriend ? "hidden md:flex justify-center items-center" : "flex"
+          !selectedFriend
+            ? "hidden md:flex justify-center items-center"
+            : "flex"
         }`}
       >
         {selectedFriend ? (
@@ -264,7 +273,9 @@ function Chat() {
                 className="h-10 w-10 rounded-full object-cover border border-slate-200"
               />
               <div>
-                <h3 className="text-sm font-semibold text-slate-800">{selectedFriend.name}</h3>
+                <h3 className="text-sm font-semibold text-slate-800">
+                  {selectedFriend.name}
+                </h3>
                 <p className="text-xs text-slate-400">Active now</p>
               </div>
             </div>

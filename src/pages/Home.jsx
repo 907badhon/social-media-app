@@ -12,6 +12,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { toast } from "react-toastify";
+import { PostCardSkeletonList } from "../components/PostCardSkeleton";
 
 const CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/kangrdfr/image/upload";
 const CLOUDINARY_PRESET = "ohgnntfr";
@@ -24,8 +25,8 @@ function Home() {
   const [imagePreview, setImagePreview] = useState("");
   const [uploading, setUploading] = useState(false);
   const [usersMap, setUsersMap] = useState({});
+  const [loadingPosts, setLoadingPosts] = useState(true);
 
-  // Sync with users collection in real-time to get latest name/avatar
   useEffect(() => {
     const q = collection(db, "users");
     const unsubscribe = onSnapshot(
@@ -39,12 +40,11 @@ function Home() {
       },
       (error) => {
         console.error("Error listening to users:", error);
-      }
+      },
     );
     return unsubscribe;
   }, []);
 
-  // Listen to posts in real-time
   useEffect(() => {
     const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
     const unsubscribe = onSnapshot(
@@ -55,11 +55,13 @@ function Home() {
           postsList.push({ id: doc.id, ...doc.data() });
         });
         setPosts(postsList);
+        setLoadingPosts(false);
       },
       (error) => {
         console.error("Error listening to posts:", error);
         toast.error("Failed to load timeline posts.");
-      }
+        setLoadingPosts(false);
+      },
     );
     return unsubscribe;
   }, []);
@@ -145,7 +147,9 @@ function Home() {
       <div className="mx-auto max-w-2xl">
         {/* Create Post Section */}
         <div className="mb-8 rounded-2xl bg-white p-6 shadow-sm border border-slate-100">
-          <h2 className="text-lg font-semibold text-slate-800 mb-4">Share Something</h2>
+          <h2 className="text-lg font-semibold text-slate-800 mb-4">
+            Share Something
+          </h2>
           <form onSubmit={handleCreatePost} className="space-y-4">
             <textarea
               value={contentText}
@@ -157,7 +161,11 @@ function Home() {
 
             {imagePreview && (
               <div className="relative inline-block rounded-xl overflow-hidden max-h-60 border border-slate-200">
-                <img src={imagePreview} alt="Upload preview" className="object-cover max-h-56" />
+                <img
+                  src={imagePreview}
+                  alt="Upload preview"
+                  className="object-cover max-h-56"
+                />
                 <button
                   type="button"
                   onClick={() => {
@@ -195,71 +203,86 @@ function Home() {
         </div>
 
         {/* Timeline Posts Feed */}
-        <div className="space-y-6">
-          {posts.length === 0 ? (
-            <div className="rounded-2xl bg-white p-8 text-center border border-slate-100 shadow-sm">
-              <p className="text-slate-500 text-sm">No posts yet. Be the first to share something!</p>
-            </div>
-          ) : (
-            posts.map((post) => {
-              const author = usersMap[post.userId] || {};
-              const authorName = author.name || post.authorName || "Anonymous";
-              const authorPhoto = author.photoURL || post.authorPhotoURL || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='20' fill='%23e2e8f0'/%3E%3Ccircle cx='20' cy='16' r='7' fill='%2394a3b8'/%3E%3Cellipse cx='20' cy='35' rx='12' ry='8' fill='%2394a3b8'/%3E%3C/svg%3E";
-              const isOwner = post.userId === user.uid;
+        {loadingPosts ? (
+          <PostCardSkeletonList count={3} />
+        ) : (
+          <div className="space-y-6">
+            {posts.length === 0 ? (
+              <div className="rounded-2xl bg-white p-8 text-center border border-slate-100 shadow-sm">
+                <p className="text-slate-500 text-sm">
+                  No posts yet. Be the first to share something!
+                </p>
+              </div>
+            ) : (
+              posts.map((post) => {
+                const author = usersMap[post.userId] || {};
+                const authorName =
+                  author.name || post.authorName || "Anonymous";
+                const authorPhoto =
+                  author.photoURL ||
+                  post.authorPhotoURL ||
+                  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='20' fill='%23e2e8f0'/%3E%3Ccircle cx='20' cy='16' r='7' fill='%2394a3b8'/%3E%3Cellipse cx='20' cy='35' rx='12' ry='8' fill='%2394a3b8'/%3E%3C/svg%3E";
+                const isOwner = post.userId === user.uid;
 
-              return (
-                <div
-                  key={post.id}
-                  className="rounded-2xl bg-white p-6 shadow-sm border border-slate-100 transition duration-300 hover:shadow-md"
-                >
-                  {/* Header */}
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={authorPhoto}
-                        alt={authorName}
-                        className="h-10 w-10 rounded-full object-cover border border-slate-100"
-                        onError={(e) => {
-                          e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='20' fill='%23e2e8f0'/%3E%3Ccircle cx='20' cy='16' r='7' fill='%2394a3b8'/%3E%3Cellipse cx='20' cy='35' rx='12' ry='8' fill='%2394a3b8'/%3E%3C/svg%3E";
-                        }}
-                      />
-                      <div>
-                        <h3 className="text-sm font-semibold text-slate-800">{authorName}</h3>
-                        <p className="text-xs text-slate-400">{formatPostTime(post.createdAt)}</p>
+                return (
+                  <div
+                    key={post.id}
+                    className="rounded-2xl bg-white p-6 shadow-sm border border-slate-100 transition duration-300 hover:shadow-md"
+                  >
+                    {/* Header */}
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={authorPhoto}
+                          alt={authorName}
+                          className="h-10 w-10 rounded-full object-cover border border-slate-100"
+                          onError={(e) => {
+                            e.target.src =
+                              "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Ccircle cx='20' cy='20' r='20' fill='%23e2e8f0'/%3E%3Ccircle cx='20' cy='16' r='7' fill='%2394a3b8'/%3E%3Cellipse cx='20' cy='35' rx='12' ry='8' fill='%2394a3b8'/%3E%3C/svg%3E";
+                          }}
+                        />
+                        <div>
+                          <h3 className="text-sm font-semibold text-slate-800">
+                            {authorName}
+                          </h3>
+                          <p className="text-xs text-slate-400">
+                            {formatPostTime(post.createdAt)}
+                          </p>
+                        </div>
                       </div>
+
+                      {isOwner && (
+                        <button
+                          onClick={() => handleDeletePost(post.id)}
+                          className="text-xs font-semibold text-rose-500 hover:text-rose-700 transition cursor-pointer"
+                        >
+                          Delete
+                        </button>
+                      )}
                     </div>
 
-                    {isOwner && (
-                      <button
-                        onClick={() => handleDeletePost(post.id)}
-                        className="text-xs font-semibold text-rose-500 hover:text-rose-700 transition cursor-pointer"
-                      >
-                        Delete
-                      </button>
-                    )}
-                  </div>
+                    {/* Body */}
+                    <div className="space-y-4">
+                      <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
+                        {post.content}
+                      </p>
 
-                  {/* Body */}
-                  <div className="space-y-4">
-                    <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
-                      {post.content}
-                    </p>
-
-                    {post.imageUrl && (
-                      <div className="rounded-xl overflow-hidden border border-slate-100 max-h-96">
-                        <img
-                          src={post.imageUrl}
-                          alt="Post attachment"
-                          className="w-full object-cover max-h-96"
-                        />
-                      </div>
-                    )}
+                      {post.imageUrl && (
+                        <div className="rounded-xl overflow-hidden border border-slate-100 max-h-96">
+                          <img
+                            src={post.imageUrl}
+                            alt="Post attachment"
+                            className="w-full object-cover max-h-96"
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })
-          )}
-        </div>
+                );
+              })
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
